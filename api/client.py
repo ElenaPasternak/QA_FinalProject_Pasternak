@@ -36,11 +36,26 @@ class TandoorAPIClient:
 
     # ---------- Рецепты ----------
 
+    def scrape_recipe_from_url(self, url):
+        """Скачивает и разбирает рецепт с внешнего сайта (POST /api/recipe-from-source/)."""
+        response = self._make_request("POST", "/api/recipe-from-source/", json={"url": url})
+        data = response.json()
+        # Tandoor может вернуть список рецептов — берём первый
+        if isinstance(data, list):
+            data = data[0] if data else {}
+        return data
+
     def import_recipe_by_url(self, url):
-        """Импортирует рецепт по ссылке с внешнего сайта (POST /api/recipe/)."""
-        response = self._make_request("POST", "/api/recipe/", json={"url": url})
+        """Импортирует рецепт по ссылке: разбирает сайт и сохраняет рецепт в Tandoor."""
+        data = self.scrape_recipe_from_url(url)
+        # Tandoor возвращает {"recipe": {...}, "images": [...], ...} — рецепт внутри ключа "recipe"
+        scraped = data.get("recipe", data) if isinstance(data, dict) else {}
+        if not scraped or not scraped.get("name"):
+            raise ValueError(f"Не удалось извлечь рецепт из {url}")
+        response = self._make_request("POST", "/api/recipe/", json=scraped)
         return response.json()
 
+    
     def get_recipes(self, query=None):
         """Возвращает список всех рецептов (GET /api/recipe/)."""
         params = {"query": query} if query else None
