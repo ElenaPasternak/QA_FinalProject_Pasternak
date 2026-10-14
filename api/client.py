@@ -67,6 +67,17 @@ class TandoorAPIClient:
         self._make_request("DELETE", f"/api/recipe/{recipe_id}/")
         return True
 
+    def create_recipe(self, payload):
+        """Создает рецепт вручную (POST /api/recipe/)."""
+        response = self._make_request("POST", "/api/recipe/", json=payload)
+        return response.json()
+
+    def get_recipe(self, recipe_id):
+        """Получает рецепт по ID (GET /api/recipe/{id}/)."""
+        response = self._make_request("GET", f"/api/recipe/{recipe_id}/")
+        return response.json()
+
+
     # ---------- Планы питания ----------
 
     def create_meal_plan(self, recipe_id, servings, start_date, end_date, meal_type_id=1):
