@@ -1,5 +1,6 @@
 ﻿import json
 import os
+from datetime import date, timedelta
 
 from api.client import TandoorAPIClient
 
@@ -9,6 +10,20 @@ RESULT_FILE = os.path.join(os.path.dirname(__file__), "data", "imported_recipes.
 
 def norm(name):
     return " ".join(name.split()).casefold()
+
+
+def build_meal_plan_data(recipe_id, servings=2, days=3, meal_type_id=1):
+    """Формирует словарь с параметрами для создания плана питания:
+    рецепт, даты начала и окончания, тип питания, количество порций."""
+    start_date = date.today()
+    end_date = start_date + timedelta(days=days)
+    return {
+        "recipe": recipe_id,
+        "servings": servings,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "meal_type": meal_type_id,
+    }
 
 
 def generate_test_data():
