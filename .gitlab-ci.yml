@@ -1,0 +1,76 @@
+stages:
+  - prepare
+  - test
+  - pages
+
+variables:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+
+
+prepare:
+  stage: prepare
+  image: python:3.12
+  script:
+    - python -m venv venv
+    - . venv/bin/activate
+    - pip install -r requirements.txt
+  artifacts:
+    paths:
+      - venv/
+    expire_in: 1 hour
+
+test_api:
+  stage: test
+  image: python:3.12
+  before_script:
+    - . venv/bin/activate
+  script:
+    - pytest -v -m api --alluredir=allure-results
+  artifacts:
+    when: always
+    paths:
+      - allure-results/
+    expire_in: 1 week
+
+test_ui:
+  stage: test
+  image: python:3.12
+  services:
+    - name: selenium/standalone-chrome:latest
+      alias: selenium
+  variables:
+    SELENIUM_URL: "http://selenium:4444/wd/hub"
+  before_script:
+    - . venv/bin/activate
+  script:
+    - pytest -v -m ui --alluredir=allure-results
+  artifacts:
+    when: always
+    paths:
+      - allure-results/
+      - screenshots/
+    expire_in: 1 week
+
+pages:
+  stage: pages
+  image: python:3.12
+  dependencies:
+    - test_api
+    - test_ui
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq default-jre-headless wget tar > /dev/null
+  script:
+    - wget -q https://github.com/allure-framework/allure2/releases/download/2.29.0/allure-2.29.0.tgz
+    - tar -zxf allure-2.29.0.tgz
+    - ./allure-2.29.0/bin/allure generate allure-results --clean -o public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

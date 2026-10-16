@@ -16,7 +16,7 @@ try:
 except ImportError:
     pass
 
-BASE_URL = os.getenv("TANDOOR_BASE_URL", "https://tandoor.vs1.srv.eduson.tv").rstrip("/")
+BASE_URL = os.getenv("BASE_URL", "https://tandoor.vs1.srv.eduson.tv").rstrip("/")
 DATA_FILE = os.path.join(os.path.dirname(__file__), "data", "imported_recipes.json")
 SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), "screenshots")
 COOKIES_FILE = os.path.join(os.path.dirname(__file__), ".session_cookies.json")
@@ -41,13 +41,15 @@ def test_data():
         return json.load(f)["recipes"]
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def get_or_create_recipe(api_client, test_data):
     """Возвращает существующий рецепт, а если рецептов нет — создаёт новый.
+
     Валидный рецепт гарантирован даже на чистой учётке."""
     recipes = api_client.get_recipes().get("results", [])
     if recipes:
-        return recipes[0]
+        yield recipes[0]
+        return
 
     created = api_client.create_recipe(
         {
@@ -62,15 +64,27 @@ def get_or_create_recipe(api_client, test_data):
     api_client.delete_recipe(created["id"])
 
 
+
 @pytest.fixture
 def driver():
-    """Запускает headless Chrome для одного UI-теста и закрывает его после."""
+    """Запускает браузер: локальный headless Chrome или удалённый Selenium в CI."""
     options = Options()
     options.add_argument("--headless=new")
     options.add_argument("--window-size=1920,1080")
-    driver = webdriver.Chrome(options=options)
+    # обязательные флаги для запуска Chrome в docker-контейнере CI
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
+    selenium_url = os.getenv("SELENIUM_URL")
+    if selenium_url:
+        # в GitLab CI подключаемся к контейнеру Selenium по переменной окружения
+        driver = webdriver.Remote(command_executor=selenium_url, options=options)
+    else:
+        # локально — собственный Chrome с уже установленным драйвером
+        driver = webdriver.Chrome(options=options)
     yield driver
     driver.quit()
+
 
 
 @pytest.fixture
@@ -96,9 +110,9 @@ def logged_in_driver(driver):
 
     # cookies нет или они просрочены — входим через форму
     page.open("/user/login")
-    page.login(os.environ["TANDOOR_USER"], os.environ["TANDOOR_PASSWORD"])
+    page.login(os.environ["TANDOOR_USERNAME"], os.environ["TANDOOR_PASSWORD"])
     assert not page.is_login_form_visible(), (
-        "Не удалось авторизоваться: проверь TANDOOR_USER и TANDOOR_PASSWORD в .env"
+        "Не удалось авторизоваться: проверь TANDOOR_USERNAME и TANDOOR_PASSWORD в .env"
     )
     with open(COOKIES_FILE, "w", encoding="utf-8") as f:
         json.dump(driver.get_cookies(), f)

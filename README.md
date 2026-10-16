@@ -1,0 +1,188 @@
+# Автоматизация smoke-тестирования Tandoor (раздел Meal Plan)
+
+Дипломный проект: smoke-тестирование ключевых сценариев раздела Meal Plan
+веб-приложения [Tandoor](https://tandoor.vs1.srv.eduson.tv/) с помощью
+Python, Selenium WebDriver, requests и pytest. Тесты запускаются автоматически
+через GitLab CI, отчёты формируются Allure и публикуются в GitLab Pages.
+
+## Цели и технологии
+
+Цель — автоматизировать проверку ключевых пользовательских сценариев:
+создание, просмотр и удаление плана питания, проверка списка покупок,
+а также работа с API-клиентом для подготовки тестовых данных.
+
+Технологии и паттерны:
+
+- Python 3.10+
+- Selenium WebDriver (Page Object Model)
+- requests (API-клиент)
+- pytest (фикстуры, маркеры)
+- Allure (пошаговые отчёты и скриншоты падений)
+- GitLab CI/CD + GitLab Pages
+
+## Требования для запуска
+
+- Python 3.10+
+- Google Chrome (для UI-тестов)
+- Git
+- Allure commandline (для локального просмотра отчёта): см. [документацию Allure](https://docs.qameta.io/allure/)
+
+## Установка и запуск
+
+1. Клонировать репозиторий и перейти в папку проекта:
+
+   ```bash
+   git clone <repository-url> qa_auto_tandoor
+   cd qa_auto_tandoor
+   ```
+
+2. Создать и активировать виртуальное окружение:
+
+   ```bash
+   python -m venv venv
+   # Linux/Mac
+   source venv/bin/activate
+   # Windows
+   venv\Scripts\activate
+   ```
+
+3. Установить зависимости:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Создать файл `.env` в корне проекта (см. раздел «Переменные окружения»).
+
+5. Запустить все тесты с сохранением результатов:
+
+   ```bash
+   pytest --alluredir=allure-results -v
+   ```
+
+   Только API-тесты:
+
+   ```bash
+   pytest -m api --alluredir=allure-results -v
+   ```
+
+   Только UI-тесты:
+
+   ```bash
+   pytest -m ui --alluredir=allure-results -v
+   ```
+
+6. Сгенерировать и открыть Allure-отчёт:
+
+   ```bash
+   allure serve allure-results
+   ```
+
+## Структура проекта
+
+```
+qa_auto_tandoor/
+├── api/
+│   ├── client.py              # TandoorAPIClient: HTTP-клиент для API Tandoor
+│   └── __init__.py
+├── pages/
+│   ├── base_page.py           # Базовые методы работы с элементами страницы
+│   ├── header_component.py    # Верхняя панель навигации
+│   ├── login_page.py          # Страница авторизации
+│   ├── meal_plan_page.py      # Экран планирования питания
+│   ├── recipes_page.py        # Страница рецептов
+│   ├── shopping_list_page.py  # Страница списка покупок
+│   └── __init__.py
+├── tests/
+│   ├── test_api_client.py     # Тесты API-клиента (маркер api)
+│   ├── test_import_recipes.py # Тест импорта рецепта по URL (маркер api)
+│   ├── test_meal_plan.py      # UI-тесты Meal Plan и списка покупок (маркер ui)
+│   └── __init__.py
+├── data/
+│   ├── recipe_urls.json       # Ссылки на рецепты с кулинарных сайтов
+│   └── imported_recipes.json  # Импортированные рецепты (ID для тестов)
+├── generate_test_data.py      # Импорт рецептов и подготовка данных плана
+├── conftest.py                # Фикстуры: api_client, driver, авторизация, скриншоты
+├── pytest.ini                 # Регистрация маркеров api / ui
+├── requirements.txt           # Зависимости
+├── .gitignore                 # Исключения: venv, .env, cookies, артефакты прогонов
+└── .gitlab-ci.yml             # Пайплайн: prepare → test (api, ui) → pages
+```
+
+## Реализованные сценарии
+
+API-тесты (маркер `api`):
+
+1. Проверка соединения с API — `test_connection`
+2. Получение списка рецептов — поле `results` в ответе — `test_get_recipes_returns_results`
+3. Создание рецепта через API и удаление — `test_create_and_delete_recipe`
+4. Получение рецепта по ID — `test_get_recipe_by_id`
+5. Обработка ошибок (запрос несуществующего рецепта) — `test_error_handling`
+6. Импорт рецепта по URL — `test_import_recipe`
+
+UI-тесты (маркер `ui`):
+
+1. Создание Meal Plan через форму (тип питания, рецепт, порции, «Добавить в Shopping List») — `test_create_meal_plan`
+2. Просмотр созданного плана на экране планирования — `test_view_meal_plan`
+3. Удаление плана через контекстное меню и проверка удаления через API — `test_delete_meal_plan`
+4. Проверка списка покупок: ингредиенты из рецепта появляются в списке — `test_shopping_list`
+
+## Список используемых библиотек
+
+- `pytest` — тестовый фреймворк, фикстуры, маркеры
+- `selenium` — UI-тесты через WebDriver
+- `requests` — HTTP-запросы к API
+- `allure-pytest` — шаги, вложения (скриншоты), отчёт
+- `python-dotenv` — загрузка переменных из `.env`
+
+Полный список с версиями — в `requirements.txt`.
+
+## Как получить API-токен Tandoor
+
+1. Зарегистрируйтесь и авторизуйтесь в приложении Tandoor.
+2. Перейдите в настройки пользователя → раздел **API**.
+3. Создайте новый токен (Create token).
+4. Скопируйте значение токена — оно понадобится для переменной `TANDOOR_TOKEN`.
+
+## Переменные окружения (пример `.env`)
+
+```
+BASE_URL=https://tandoor.vs1.srv.eduson.tv
+TANDOOR_TOKEN=your_token_here
+TANDOOR_USERNAME=your_email_here
+TANDOOR_PASSWORD=your_password_here
+```
+
+Файл `.env` добавлен в `.gitignore` и не попадает в репозиторий.
+Для CI переменные задаются в GitLab: Settings → CI/CD → Variables
+(с флагами masked и protected).
+
+## Запуск в GitLab CI
+
+Пайплайн запускается автоматически при каждом пуше в ветку `main`:
+
+- `prepare` — создание виртуального окружения и установка зависимостей (передаётся артефактом);
+- `test_api` — API-тесты (маркер `api`);
+- `test_ui` — UI-тесты (маркер `ui`) в контейнере `selenium/standalone-chrome`;
+- `pages` — генерация Allure-отчёта из `allure-results` и публикация в GitLab Pages.
+
+Отчёт доступен в разделе Deploy → Pages после зелёного пайплайна.
+
+## Особенности работы приложения, найденные при тестировании
+
+- Tandoor при импорте рецепта по URL может вернуть список объектов вместо словаря —
+  клиент обрабатывает оба формата.
+- Ингредиенты с одинаковыми названиями в списке покупок не объединяются
+  автоматически, даже если пришли из одного рецепта.
+- Список покупок обновляется без перезагрузки страницы.
+- Категории для группировки товаров на вкладке «Супермаркеты» нужно создавать вручную.
+- Сессия авторизации переиспользуется через сохранённые cookies, чтобы не
+  логиниться в каждом тесте.
+
+## Рекомендации по улучшению тестового покрытия
+
+- Добавить тесты на редактирование и перемещение планов питания (сдвиг влево/вправо).
+- Покрыть автопланировщик и экспорт `.ics`.
+- Добавить негативные проверки формы создания плана (пустые поля, некорректные даты).
+- Ввести параллельный запуск UI-тестов (pytest-xdist) для ускорения пайплайна.
+- Добавить ретрай нестабильных UI-тестов (pytest-rerunfailures).

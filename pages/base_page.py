@@ -16,3 +16,14 @@ class BasePage:
 
     def wait_for(self, locator):
         return self.wait.until(EC.presence_of_element_located(locator))
+
+    def find(self, locator):
+        return self.driver.find_element(*locator)
+
+    def click(self, locator):
+        self.wait_for(locator).click()
+
+    def fill(self, locator, text):
+        element = self.wait_for(locator)
+        element.clear()
+        element.send_keys(text)
