@@ -1,4 +1,5 @@
 ﻿import pytest
+import requests
 
 from api.client import TandoorAPIClient
 
@@ -33,8 +34,9 @@ def test_create_and_delete_recipe(client):
     payload = {
         "name": "API Test Recipe",
         "description": "temporary test recipe",
-        "steps": [{"instruction": "Mix ingredients", "time": 5, "ingredients": [], "subrecipes": []}],
-
+        "steps": [{"instruction": "Mix ingredients", "time": 5,
+                   "ingredients": [], "subrecipes": []}],
+        "servings": 2,
     }
 
     created = client.create_recipe(payload)
@@ -67,6 +69,6 @@ def test_get_recipe_by_id(client):
 
 
 def test_error_handling(client):
-    """Запрос несуществующего рецепта вызывает ошибку, а не молчит."""
-    with pytest.raises(Exception):
+    """Запрос несуществующего рецепта возвращает ошибку 404, а не молчит."""
+    with pytest.raises(requests.HTTPError, match="404"):
         client.get_recipe(99999999)

@@ -24,17 +24,18 @@ class TandoorAPIClient:
             response = requests.request(
                 method, url, headers=self.headers, json=json, params=params, timeout=30
             )
-            if response.status_code >= 400:
-                raise requests.HTTPError(
-                    f"{method} {url} вернул статус {response.status_code}: {response.text}"
-                )
+            response.raise_for_status()
             return response
+        except requests.HTTPError:
+            # Ошибки API (4xx/5xx) пробрасываем как есть — тесты проверяют статусы
+            raise
         except requests.ConnectionError as e:
             raise ConnectionError(f"Не удалось подключиться к {url}: {e}") from e
         except requests.Timeout as e:
             raise TimeoutError(f"Превышено время ожидания запроса {url}: {e}") from e
         except requests.RequestException as e:
             raise RuntimeError(f"Ошибка запроса к {url}: {e}") from e
+
 
     # ---------- Рецепты ----------
 
@@ -106,7 +107,6 @@ class TandoorAPIClient:
         response = self._make_request("POST", "/api/meal-plan/", json=payload)
         return response.json()
 
-
     def get_meal_plan(self, plan_id):
         """Получает план питания по ID (GET /api/meal-plan/{id}/)."""
         response = self._make_request("GET", f"/api/meal-plan/{plan_id}/")
@@ -144,7 +144,12 @@ class TandoorAPIClient:
                 last_error = e
         raise RuntimeError(f"Не удалось создать тип питания: {last_error}")
 
-      # ---------- Список покупок ----------
+    # ---------- Список покупок ----------
+
+    def get_shopping_list(self):
+        """Получает список покупок (GET /api/shopping-list/)."""
+        response = self._make_request("GET", "/api/shopping-list/")
+        return response.json()
 
     def get_shopping_list_entries(self):
         """GET /api/shopping-list-entry/ — позиции списка покупок."""
@@ -155,16 +160,6 @@ class TandoorAPIClient:
         """DELETE /api/shopping-list-entry/{id}/ — удаляет позицию списка."""
         self._make_request("DELETE", f"/api/shopping-list-entry/{entry_id}/")
         return True
-
-    def get_shopping_list(self):
-        """Получает список покупок (GET /api/shopping-list/)."""
-        response = self._make_request("GET", "/api/shopping-list/")
-        return response.json()
-
-    def get_shopping_lists(self):
-        """GET /api/shopping-list/ — существующие списки покупок."""
-        response = self._make_request("GET", "/api/shopping-list/")
-        return response.json()
 
     def get_foods(self, query=None):
         """GET /api/food/ — поиск продуктов."""
@@ -184,8 +179,6 @@ class TandoorAPIClient:
             payload["shopping_lists"] = [list_id]
         response = self._make_request("POST", "/api/shopping-list-entry/", json=payload)
         return response.json()
-
-
 
     # ---------- Проверка соединения ----------
 

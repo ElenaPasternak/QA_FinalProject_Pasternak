@@ -23,3 +23,9 @@ class HeaderComponent(BasePage):
         """Проверяет, что пользователь авторизован (виден элемент меню пользователя)."""
         elements = self.driver.find_elements(*self.USER_MENU)
         return len(elements) > 0
+
+    def get_username(self):
+        """Возвращает имя пользователя из меню или None, если не авторизован."""
+        menu = self.driver.find_element(*self.USER_MENU)
+        text = menu.text.strip()
+        return text if text else None

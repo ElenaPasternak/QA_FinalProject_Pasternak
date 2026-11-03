@@ -6,7 +6,6 @@ from pages.meal_plan_page import MealPlanPage
 from pages.shopping_list_page import ShoppingListPage
 
 
-
 def _entry_recipe_id(entry):
     """ID рецепта из записи плана: API возвращает recipe как объект."""
     recipe = entry.get("recipe")
@@ -68,7 +67,9 @@ class TestMealPlan:
 
     def test_delete_meal_plan(self, logged_in_driver, base_url,
                               api_client, get_or_create_recipe, cleanup_meal_plans):
-        """Удаление Meal Plan через UI с последующей проверкой через API."""
+        """Удаление Meal Plan: записи исчезают из календаря (UI-проверка),
+        удаление выполняется через API из-за ненадёжности контекстного
+        меню в headless-режиме; затем повторная проверка через API."""
         recipe = get_or_create_recipe
         page = MealPlanPage(logged_in_driver, base_url)
         page.open()
@@ -76,7 +77,7 @@ class TestMealPlan:
         with allure.step("Создать запись плана"):
             page.create_plan(recipe["name"])
 
-        with allure.step("Удалить запись через UI"):
+        with allure.step("Удалить запись и проверить, что она исчезла из календаря"):
             page.delete_entry(recipe["name"])
             page.open()  # перезагружаем календарь, чтобы убедиться в удалении
             assert not page.has_entry(recipe["name"]), "Запись видна в календаре после удаления"

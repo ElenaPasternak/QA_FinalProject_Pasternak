@@ -64,7 +64,6 @@ def get_or_create_recipe(api_client, test_data):
     api_client.delete_recipe(created["id"])
 
 
-
 @pytest.fixture
 def driver():
     """Запускает браузер: локальный headless Chrome или удалённый Selenium в CI."""
@@ -86,7 +85,6 @@ def driver():
     driver.quit()
 
 
-
 @pytest.fixture
 def logged_in_driver(driver):
     """Браузер с выполнённой авторизацией.
@@ -96,6 +94,11 @@ def logged_in_driver(driver):
     # пробуем восстановить сессию из сохранённых cookies
     if os.path.exists(COOKIES_FILE):
         page.open("/")
+        # чистим браузерные cookies перед восстановлением: повторный
+        # add_cookie с тем же именем создаёт дубликат csrftoken, и сервер
+        # видит не тот токен, который фронт кладёт в X-Csrftoken —
+        # отсюда 403 CSRF Failed при сохранении через UI-форму
+        driver.delete_all_cookies()
         with open(COOKIES_FILE, "r", encoding="utf-8") as f:
             cookies = json.load(f)
         for cookie in cookies:
@@ -109,7 +112,7 @@ def logged_in_driver(driver):
             return
 
     # cookies нет или они просрочены — входим через форму
-    page.open("/user/login")
+    page.open("/accounts/login/")
     page.login(os.environ["TANDOOR_USERNAME"], os.environ["TANDOOR_PASSWORD"])
     assert not page.is_login_form_visible(), (
         "Не удалось авторизоваться: проверь TANDOOR_USERNAME и TANDOOR_PASSWORD в .env"

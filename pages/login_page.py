@@ -11,13 +11,15 @@ class LoginPage(BasePage):
     PASSWORD_INPUT = (By.ID, "id_password")
     SUBMIT_BUTTON = (By.CSS_SELECTOR, "button[type='submit']")
 
-    def open(self, path="/user/login"):
+    def open(self, path="/accounts/login/"):
         super().open(path)
 
+
     def login(self, username, password):
-        self.wait_for(self.USERNAME_INPUT).send_keys(username)
-        self.driver.find_element(*self.PASSWORD_INPUT).send_keys(password)
-        self.driver.find_element(*self.SUBMIT_BUTTON).click()
+        self.fill(self.USERNAME_INPUT, username)
+        self.fill(self.PASSWORD_INPUT, password)
+        self.click(self.SUBMIT_BUTTON)
+
 
     def is_login_form_visible(self):
         """True, если на странице видна форма входа (значит, мы ещё не авторизованы)."""
