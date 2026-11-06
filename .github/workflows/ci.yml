@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  # этап prepare из .gitlab-ci.yml: установка зависимостей.
+  # venv между раннерами не переносится, поэтому каждый джоб ставит
+  # зависимости сам, а кэш pip заменяет кэш .cache/pip из GitLab
+  prepare-and-test-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest -v -m api --alluredir=allure-results
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TANDOOR_TOKEN: ${{ secrets.TANDOOR_TOKEN }}
+          TANDOOR_USERNAME: ${{ secrets.TANDOOR_USERNAME }}
+          TANDOOR_PASSWORD: ${{ secrets.TANDOOR_PASSWORD }}
+      # аналог artifacts: when: always — артефакт собирается даже при падении тестов
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-api
+          path: allure-results
+          if-no-files-found: warn
+
+  test-ui:
+    runs-on: ubuntu-latest
+    # аналог services из .gitlab-ci.yml: контейнер Selenium поднимается рядом с раннером
+    services:
+      selenium:
+        image: selenium/standalone-chrome:latest
+        ports:
+          - 4444:4444
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest -v -m ui --alluredir=allure-results
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TANDOOR_TOKEN: ${{ secrets.TANDOOR_TOKEN }}
+          TANDOOR_USERNAME: ${{ secrets.TANDOOR_USERNAME }}
+          TANDOOR_PASSWORD: ${{ secrets.TANDOOR_PASSWORD }}
+          # в conftest.py эта переменная переключает драйвер на Remote;
+          # сервис GitHub Actions доступен с раннера по localhost
+          SELENIUM_URL: "http://localhost:4444/wd/hub"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-ui
+          path: allure-results
+          if-no-files-found: warn
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots
+          if-no-files-found: ignore
+
+  # этап pages: сборка Allure-отчёта той же версии 2.29.0, что в .gitlab-ci.yml
+  pages:
+    needs: [prepare-and-test-api, test-ui]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: allure-results-*
+          path: allure-results
+          merge-multiple: true
+      - run: |
+          wget -q https://github.com/allure-framework/allure2/releases/download/2.29.0/allure-2.29.0.tgz
+          tar -zxf allure-2.29.0.tgz
+          ./allure-2.29.0/bin/allure generate allure-results --clean -o public
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - uses: actions/deploy-pages@v4
