@@ -3,7 +3,12 @@
 Дипломный проект: smoke-тестирование ключевых сценариев раздела Meal Plan
 веб-приложения [Tandoor](https://tandoor.vs1.srv.eduson.tv/) с помощью
 Python, Selenium WebDriver, requests и pytest. Тесты запускаются автоматически
-через GitLab CI, отчёты формируются Allure и публикуются в GitLab Pages.
+через GitHub Actions, отчёты формируются Allure и публикуются на GitHub Pages.
+
+**Allure-отчёт последнего прогона:**
+https://elenapasternak.github.io/QA_FinalProject_Pasternak/
+
+[![CI](https://github.com/ElenaPasternak/QA_FinalProject_Pasternak/actions/workflows/ci.yml/badge.svg)](https://github.com/ElenaPasternak/QA_FinalProject_Pasternak/actions/workflows/ci.yml)
 
 ## Цели и технологии
 
@@ -18,7 +23,7 @@ Python, Selenium WebDriver, requests и pytest. Тесты запускаютс�
 - requests (API-клиент)
 - pytest (фикстуры, маркеры)
 - Allure (пошаговые отчёты и скриншоты падений)
-- GitLab CI/CD + GitLab Pages
+- GitHub Actions (CI/CD) + GitHub Pages
 
 ## Требования для запуска
 
@@ -106,7 +111,10 @@ qa_auto_tandoor/
 ├── pytest.ini                 # Регистрация маркеров api / ui
 ├── requirements.txt           # Зависимости
 ├── .gitignore                 # Исключения: venv, .env, cookies, артефакты прогонов
-└── .gitlab-ci.yml             # Пайплайн: prepare → test (api, ui) → pages
+├── .gitlab-ci.yml             # Пайплайн GitLab: prepare → test (api, ui) → pages
+└── .github/
+    └── workflows/
+        └── ci.yml             # CI GitHub Actions: API и UI параллельно → Allure → Pages
 ```
 
 ## Реализованные сценарии
@@ -179,19 +187,29 @@ TANDOOR_PASSWORD=your_password_here
 ошибку «Имя пользователя и/или пароль неверны»).
 
 Файл `.env` добавлен в `.gitignore` и не попадает в репозиторий.
-Для CI переменные задаются в GitLab: Settings → CI/CD → Variables
-(с флагами masked и protected).
+Для CI переменные задаются в GitHub Secrets: Settings → Secrets and
+variables → Actions (в GitLab аналогично настраиваются в Settings →
+CI/CD → Variables с флагами masked и protected).
 
-## Запуск в GitLab CI
+## Запуск в CI
 
-Пайплайн запускается автоматически при каждом пуше в ветку `main`:
+Основной CI — GitHub Actions (`.github/workflows/ci.yml`), запускается
+автоматически при каждом пуше в ветку `main`:
 
-- `prepare` — создание виртуального окружения и установка зависимостей (передаётся артефактом);
-- `test_api` — API-тесты (маркер `api`);
-- `test_ui` — UI-тесты (маркер `ui`) в контейнере `selenium/standalone-chrome`;
-- `pages` — генерация Allure-отчёта из `allure-results` и публикация в GitLab Pages.
+- **prepare-and-test-api** — установка зависимостей и API-тесты (маркер `api`);
+- **test-ui** — UI-тесты (маркер `ui`) в headless Chrome; эти две джобы
+  выполняются параллельно на независимых раннерах;
+- **pages** — после успешного прохождения обеих: сборка Allure-отчёта
+  из `allure-results` и публикация на GitHub Pages.
 
-Отчёт доступен в разделе Deploy → Pages после зелёного пайплайна.
+Отчёт доступен по ссылке выше после каждого зелёного прогона.
+
+### Ограничение GitLab CI
+
+Репозиторий синхронизирован также с GitLab (`.gitlab-ci.yml` в корне,
+конфигурация пайплайна сохранена). В шаред-раннерах GitLab сетевой доступ
+к тестовому стенду ограничен, поэтому основной CI перенесён на GitHub
+Actions; GitLab-remote используется для синхронизации истории коммитов.
 
 ## Особенности работы приложения, найденные при тестировании
 
